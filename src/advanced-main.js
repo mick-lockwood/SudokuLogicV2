@@ -1040,6 +1040,8 @@ window.setAppMode = (m) => {
         if (hasManualShading) {
             State.solutionShadeMap = [...State.shadeMap];
             State.shadeMap = Array(State.size * State.size).fill(0);
+            if (State.undoStack) State.undoStack = [];
+            if (State.redoStack) State.redoStack = [];
         }
     } else if (m === 'create' && State.mode === 'solve') {
         // Restore setter's map so they can edit it
@@ -1518,6 +1520,8 @@ window.addEventListener('beforeunload', () => window.forceAutosave());
 const originalUpdateUI = window.updateUI;
 window.updateUI = () => {
     if (originalUpdateUI) originalUpdateUI();
+    // Win check must run after EVERY UI update (covers Nurikabe shading, etc.)
+    if (typeof window.checkAdvancedWin === 'function') window.checkAdvancedWin();
     if (typeof window.triggerAutosave === 'function') window.triggerAutosave();
     if (typeof renderTorusBoard === 'function') renderTorusBoard();
     if (typeof renderVariantOverlay === 'function') renderVariantOverlay();
