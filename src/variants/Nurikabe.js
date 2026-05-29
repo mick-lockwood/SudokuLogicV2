@@ -173,28 +173,25 @@ export function generateRandomNurikabe(attemptsLeft = 50) {
     const label = document.getElementById('status-label');
     if (label) { label.textContent = "Generating Nurikabe..."; label.style.color = "var(--text-main)"; }
     
+    // Clear board before attempt to avoid half-broken state
+    State.board.forEach(c => { c.val = 0; c.given = false; c.notes = []; });
+    
     setTimeout(() => {
         try {
             const puzzle = generateNurikabeGrid(State.size);
-            
-            State.board.forEach(c => { c.val = 0; c.given = false; c.notes = []; });
-            
             State.solutionShadeMap = puzzle.shades;
-            State.shadeMap = [...puzzle.shades]; // Show it to the setter
-
+            State.shadeMap = [...puzzle.shades];
             puzzle.clues.forEach(clue => {
                 State.board[clue.i].val = clue.v;
                 State.board[clue.i].given = true;
             });
-
             saveState();
             if (label) { label.textContent = "Puzzle Ready!"; label.style.color = "var(--success)"; }
             if (typeof window.updateDynamicTitle === 'function') window.updateDynamicTitle();
             if (typeof window.setAppMode === 'function') window.setAppMode('solve');
             if (typeof window.updateUI === 'function') window.updateUI();
-            
         } catch (e) {
-            // Silently restart if the procedural math backed itself into a corner
+            console.warn("Nurikabe generation failed, retrying...", e);
             generateRandomNurikabe(attemptsLeft - 1);
         }
     }, 10);
