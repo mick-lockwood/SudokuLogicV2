@@ -190,6 +190,9 @@ export function generateRandomNurikabe(attemptsLeft = 50) {
             if (typeof window.updateDynamicTitle === 'function') window.updateDynamicTitle();
             if (typeof window.setAppMode === 'function') window.setAppMode('solve');
             if (typeof window.updateUI === 'function') window.updateUI();
+            if (typeof window !== 'undefined' && window.propagateFogReveal) {
+                setTimeout(() => window.propagateFogReveal(), 50);
+            }
         } catch (e) {
             console.warn("Nurikabe generation failed, retrying...", e);
             generateRandomNurikabe(attemptsLeft - 1);
