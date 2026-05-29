@@ -1247,7 +1247,8 @@ window.generateNew = () => {
         // 3. Classic Sudoku Generator
         if (originalGenerateNew) originalGenerateNew();
         if (State.mode === 'solve' && State.fogMode) {
-        setTimeout(() => propagateFogReveal(), 50);
+            setTimeout(() => propagateFogReveal(), 50);
+        }
     }
 };
 
