@@ -391,45 +391,6 @@ window.handleInput = (val) => {
             propagateFogReveal()
         }
     }
-
-    function propagateFogReveal() {
-        if (!State.fogMode || State.mode !== 'solve') return;
-        let changed = true;
-        let maxIter = 50; // safety
-        let iter = 0;
-        while (changed && iter++ < maxIter) {
-            changed = false;
-            for (let i = 0; i < State.size * State.size; i++) {
-                if (State.fogMap[i] && !State.fogRevealed[i]) {
-                    let shouldReveal = false;
-                    // Check if this cell has a trigger digit and it matches the current value
-                    if (State.fogTriggers && State.fogTriggers[i] !== undefined) {
-                        if (State.board[i].val === State.fogTriggers[i]) shouldReveal = true;
-                    } else if (State.solution && State.solution[i] !== undefined) {
-                        // If no custom trigger, use solution digit (only if the cell is correctly filled)
-                        if (State.board[i].val === State.solution[i]) shouldReveal = true;
-                    }
-                    if (shouldReveal) {
-                        State.fogRevealed[i] = true;
-                        changed = true;
-                        // Also reveal any cells linked from this one
-                        if (State.fogLinks && State.fogLinks[i]) {
-                            for (let target of State.fogLinks[i]) {
-                                if (!State.fogRevealed[target]) {
-                                    State.fogRevealed[target] = true;
-                                    changed = true;
-                                }
-                            }
-                        }
-                        // Reveal 3x3 area around it? (your existing code does that, but we re-run loop)
-                    }
-                }
-            }
-            // Also propagate from links: if a target is revealed, it might trigger its own links
-            // The loop will catch that in next iteration.
-        }
-        if (typeof window.updateUI === 'function') window.updateUI();
-    }
     
     // 4. THE CORE CELL ASSIGNMENT (Bypassing Classic Engine)
     State.selected.forEach(idx => {
@@ -495,6 +456,40 @@ window.checkAdvancedWin = () => {
         }
     }, 50);
 };
+
+// ========== FOG PROPAGATION (add this entire block) ==========
+function propagateFogReveal() {
+    if (!State.fogMode || State.mode !== 'solve') return;
+    let changed = true;
+    let maxIter = 50;
+    let iter = 0;
+    while (changed && iter++ < maxIter) {
+        changed = false;
+        for (let i = 0; i < State.size * State.size; i++) {
+            if (State.fogMap[i] && !State.fogRevealed[i]) {
+                let shouldReveal = false;
+                if (State.fogTriggers && State.fogTriggers[i] !== undefined) {
+                    if (State.board[i].val === State.fogTriggers[i]) shouldReveal = true;
+                } else if (State.solution && State.solution[i] !== undefined) {
+                    if (State.board[i].val === State.solution[i]) shouldReveal = true;
+                }
+                if (shouldReveal) {
+                    State.fogRevealed[i] = true;
+                    changed = true;
+                    if (State.fogLinks && State.fogLinks[i]) {
+                        for (let target of State.fogLinks[i]) {
+                            if (!State.fogRevealed[target]) {
+                                State.fogRevealed[target] = true;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (typeof window.updateUI === 'function') window.updateUI();
+}
 
 function triggerWinUI() {
     State.selected.length = 0; 
@@ -1035,6 +1030,8 @@ window.setAppMode = (m) => {
         const winOverlay = document.getElementById('win-overlay');
         if (winOverlay) winOverlay.style.display = 'none';
         if (typeof Renderer !== 'undefined' && Renderer.stopConfetti) Renderer.stopConfetti();
+        // Re-evaluate fog after reset (in case saved game already had correct digits)
+        setTimeout(() => propagateFogReveal(), 10);
     }
     
     try {
@@ -1149,6 +1146,9 @@ const generateWithRetry = (attemptsLeft) => {
     try {
         resetGenSafety();
         if (originalGenerateNew) originalGenerateNew();
+        if (State.mode === 'solve' && State.fogMode) {
+            setTimeout(() => propagateFogReveal(), 50);
+        }
     } catch (e) {
         if (e.message === "JIGSAW_TIMEOUT") {
             console.log(`Jigsaw branch stuck. Restarting... (Attempt ${15 - attemptsLeft + 1}/15)`);
@@ -1246,6 +1246,8 @@ window.generateNew = () => {
     } else {
         // 3. Classic Sudoku Generator
         if (originalGenerateNew) originalGenerateNew();
+        if (State.mode === 'solve' && State.fogMode) {
+        setTimeout(() => propagateFogReveal(), 50);
     }
 };
 
@@ -1638,7 +1640,14 @@ window.loadAutosave = () => {
         if (State.shiftMode) window.toggleShiftMode();
         
         console.log("Autosave restored seamlessly!");
+
+        // After everything is loaded, refresh fog visibility
+        if (State.mode === 'solve' && State.fogMode) {
+            setTimeout(() => propagateFogReveal(), 50);
+        }
+        
         return true;
+        
     } catch(e) {
         console.error("Failed to load autosave", e);
         return false;
