@@ -1653,3 +1653,4 @@ window.loadAutosave = () => {
         return false;
     }
 };
+window.propagateFogReveal = propagateFogReveal;
