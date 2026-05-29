@@ -229,7 +229,21 @@ export function generateRandomNurikabe(attemptsLeft = 50) {
 }
 
 export function validateNurikabe(shadeMap, board, size) {
-    // Reuse the global getNeighbors (now defined above)
+    // 0. All cells must be shaded (no 0 allowed for a complete solution)
+    if (shadeMap.some(val => val === 0)) return false;
+
+    // Helper: orthogonal neighbors
+    function getNeighbors(i) {
+        const r = Math.floor(i / size), c = i % size;
+        const n = [];
+        if (r > 0) n.push(i - size);
+        if (r < size - 1) n.push(i + size);
+        if (c > 0) n.push(i - 1);
+        if (c < size - 1) n.push(i + 1);
+        return n;
+    }
+
+    // 1. No 2x2 black squares (shadeMap[i] === 2)
     for (let r = 0; r < size - 1; r++) {
         for (let c = 0; c < size - 1; c++) {
             const idx = r * size + c;
@@ -240,18 +254,19 @@ export function validateNurikabe(shadeMap, board, size) {
         }
     }
 
-    let blackIndices = [];
+    // 2. Black cells form one connected component
+    const blackIndices = [];
     for (let i = 0; i < size * size; i++) {
         if (shadeMap[i] === 2) blackIndices.push(i);
     }
-    if (blackIndices.length === 0) return false;
+    if (blackIndices.length === 0) return false; // must have some black cells
 
     const visitedBlack = new Set();
     const queue = [blackIndices[0]];
     visitedBlack.add(blackIndices[0]);
     while (queue.length) {
         const curr = queue.shift();
-        for (let n of getNeighbors(curr, size)) {
+        for (let n of getNeighbors(curr)) {
             if (shadeMap[n] === 2 && !visitedBlack.has(n)) {
                 visitedBlack.add(n);
                 queue.push(n);
@@ -260,6 +275,7 @@ export function validateNurikabe(shadeMap, board, size) {
     }
     if (visitedBlack.size !== blackIndices.length) return false;
 
+    // 3. White islands: each must have exactly one clue and size matches clue
     const visitedWhite = new Set();
     for (let i = 0; i < size * size; i++) {
         if (shadeMap[i] === 1 && !visitedWhite.has(i)) {
@@ -269,14 +285,15 @@ export function validateNurikabe(shadeMap, board, size) {
             while (q.length) {
                 const curr = q.shift();
                 island.push(curr);
-                for (let n of getNeighbors(curr, size)) {
+                for (let n of getNeighbors(curr)) {
                     if (shadeMap[n] === 1 && !visitedWhite.has(n)) {
                         visitedWhite.add(n);
                         q.push(n);
                     }
                 }
             }
-            let clueCount = 0, clueValue = 0;
+            let clueCount = 0;
+            let clueValue = 0;
             for (let idx of island) {
                 const val = board[idx].val;
                 if (val !== 0) {
