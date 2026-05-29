@@ -255,20 +255,17 @@ export function updateUI() {
                 el.innerHTML += `<div style="position: absolute; top: 2px; right: 4px; font-size: 10px; opacity: 0.5; pointer-events: none; z-index: 5;">🔒</div>`;
             }
 
-            // --- NEW: FOG RENDERING ---
+            // --- FOG RENDERING (replace your existing fog block) ---
             const isFogged = State.fogMode && State.fogMap && State.fogMap[i];
             const isRevealed = State.mode === 'solve' && State.fogRevealed && State.fogRevealed[i];
-
+            
             if (State.mode === 'solve' && isFogged && !isRevealed) {
-                // PURE FOG: Hides everything underneath
+                // Completely hide the cell content – show only fog cloud
                 const fogColor = State.darkMode ? '#0f172a' : '#94a3b8';
-                
-                // Highlight the fog cloud if the user has clicked it!
                 const isSelectedFog = State.selected.includes(i);
                 const focusStyle = isSelectedFog ? `box-shadow: inset 0 0 0 2px #38bdf8, inset 0 0 15px rgba(56,189,248,0.4);` : '';
-
                 el.innerHTML = `<div style="position: absolute; inset: -1px; background: ${fogColor}; ${focusStyle} z-index: 100; display: flex; align-items: center; justify-content: center; font-size: 20px; opacity: 0.98; transition: all 0.2s;">☁️</div>`;
-                return; // Skips rendering numbers!
+                continue; // Skip the rest of the cell rendering (digits, pencils, etc.)
             }
             // --------------------------
 
