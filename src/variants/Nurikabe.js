@@ -183,6 +183,15 @@ export function autoClueNurikabe() {
         });
 
         State.solutionShadeMap = [...State.shadeMap];
+        // Player shading will be cleared by setAppMode’s Nurikabe hook
+        // Clear undo history so Undo does not reveal the full shading
+        if (State.undoStack) State.undoStack = [];
+        if (State.redoStack) State.redoStack = [];
+        if (window.AdvancedState) {
+            window.AdvancedState.variantUndoStack = [];
+            window.AdvancedState.variantRedoStack = [];
+        }
+
         saveState();
 
         if (label) { label.textContent = "Custom Board Auto-Clued!"; label.style.color = "var(--success)"; }
@@ -208,12 +217,24 @@ export function generateRandomNurikabe(attemptsLeft = 50) {
         try {
             const puzzle = generateNurikabeGrid(State.size);
             State.solutionShadeMap = puzzle.shades;
-            State.shadeMap = [...puzzle.shades];
+            // Player starts with completely empty shading – NEVER store the full solution
+            State.shadeMap = Array(State.size * State.size).fill(0);
+            
             puzzle.clues.forEach(clue => {
                 State.board[clue.i].val = clue.v;
                 State.board[clue.i].given = true;
             });
+
+            // Clear all undo history so Undo cannot bring back the solution
+            if (State.undoStack) State.undoStack = [];
+            if (State.redoStack) State.redoStack = [];
+            if (window.AdvancedState) {
+                window.AdvancedState.variantUndoStack = [];
+                window.AdvancedState.variantRedoStack = [];
+            }
+
             saveState();
+            
             if (label) { label.textContent = "Puzzle Ready!"; label.style.color = "var(--success)"; }
             if (typeof window.updateDynamicTitle === 'function') window.updateDynamicTitle();
             if (typeof window.setAppMode === 'function') window.setAppMode('solve');
