@@ -2,35 +2,6 @@
 import { State, saveState } from '../GameState.js';
 
 // --- MATH & VALIDATION ---
-function getNeighbors(i, size) {
-    const r = Math.floor(i / size);
-    const c = i % size;
-    const n = [];
-    if (r > 0) n.push(i - size);
-    if (r < size - 1) n.push(i + size);
-    if (c > 0) n.push(i - 1);
-    if (c < size - 1) n.push(i + 1);
-    return n;
-}
-
-function checkRiverContinuity(grid, size) {
-    let firstRiver = grid.indexOf(2);
-    if (firstRiver === -1) return true;
-    let riverCount = grid.filter(s => s === 2).length;
-    let visited = new Set([firstRiver]);
-    let queue = [firstRiver];
-    while (queue.length > 0) {
-        let curr = queue.shift();
-        for (let n of getNeighbors(curr, size)) {
-            if (grid[n] === 2 && !visited.has(n)) {
-                visited.add(n);
-                queue.push(n);
-            }
-        }
-    }
-    return visited.size === riverCount;
-}
-
 function find2x2(grid, size) {
     for (let r = 0; r < size - 1; r++) {
         for (let c = 0; c < size - 1; c++) {
@@ -227,4 +198,83 @@ export function generateRandomNurikabe(attemptsLeft = 50) {
             generateRandomNurikabe(attemptsLeft - 1);
         }
     }, 10);
+}
+
+export function validateNurikabe(shadeMap, board, size) {
+    // Helper: orthogonal neighbors
+    function getNeighbors(i) {
+        const r = Math.floor(i / size), c = i % size;
+        const n = [];
+        if (r > 0) n.push(i - size);
+        if (r < size - 1) n.push(i + size);
+        if (c > 0) n.push(i - 1);
+        if (c < size - 1) n.push(i + 1);
+        return n;
+    }
+
+    // 1. No 2x2 black squares (shadeMap[i] === 2)
+    for (let r = 0; r < size - 1; r++) {
+        for (let c = 0; c < size - 1; c++) {
+            const idx = r * size + c;
+            if (shadeMap[idx] === 2 && shadeMap[idx + 1] === 2 &&
+                shadeMap[idx + size] === 2 && shadeMap[idx + size + 1] === 2) {
+                return false;
+            }
+        }
+    }
+
+    // 2. Black cells form one connected component
+    let blackIndices = [];
+    for (let i = 0; i < size * size; i++) {
+        if (shadeMap[i] === 2) blackIndices.push(i);
+    }
+    if (blackIndices.length === 0) return false; // need at least some river
+
+    const visitedBlack = new Set();
+    const queue = [blackIndices[0]];
+    visitedBlack.add(blackIndices[0]);
+    while (queue.length) {
+        const curr = queue.shift();
+        for (let n of getNeighbors(curr)) {
+            if (shadeMap[n] === 2 && !visitedBlack.has(n)) {
+                visitedBlack.add(n);
+                queue.push(n);
+            }
+        }
+    }
+    if (visitedBlack.size !== blackIndices.length) return false;
+
+    // 3. White islands: each must have exactly one clue (non-zero digit) and size matches clue
+    const visitedWhite = new Set();
+    for (let i = 0; i < size * size; i++) {
+        if (shadeMap[i] === 1 && !visitedWhite.has(i)) {
+            // Flood fill this white island
+            let island = [];
+            let q = [i];
+            visitedWhite.add(i);
+            while (q.length) {
+                const curr = q.shift();
+                island.push(curr);
+                for (let n of getNeighbors(curr)) {
+                    if (shadeMap[n] === 1 && !visitedWhite.has(n)) {
+                        visitedWhite.add(n);
+                        q.push(n);
+                    }
+                }
+            }
+            // Count clues (digits > 0) inside this island
+            let clueCount = 0;
+            let clueValue = 0;
+            for (let idx of island) {
+                const val = board[idx].val;
+                if (val !== 0) {
+                    clueCount++;
+                    clueValue = val;
+                }
+            }
+            if (clueCount !== 1) return false;
+            if (clueValue !== island.length) return false;
+        }
+    }
+    return true;
 }
