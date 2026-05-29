@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sudoku Creator - Classic V1</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="https://fav.farm/🧩">
+</head>
+<body>
+    <div id="mobile-overlay" onclick="closeMobileMenu()"></div>
+    <div id="mobile-toolbar">
+        <button class="toolbar-btn" onclick="openMobileMenu('colors')">🖍️ Highlighter</button>
+        <button class="toolbar-btn" onclick="openMobileMenu('settings')">⚙️ Settings</button>
+    </div>
+
+    <h1><span id="puzzle-title" contenteditable="true" spellcheck="false" title="Click to rename your puzzle">Sudoku Creator (click to rename)</span> <span id="difficulty-badge" class="diff-medium">Medium</span></h1>
+    
+    <div id="app-container">
+        
+        <div id="left-panel">
+            <div class="tool-section">
+                <h3>Visibility</h3>
+                <label class="switch-label">Highlight Cells Seen <input type="checkbox" id="toggle-seen" checked onchange="updateUI()"></label>
+            </div>
+            
+            <div class="tool-section mobile-theme-only" style="margin-top: 15px; width: 100%;">
+                <h3>Theme</h3>
+                <button class="clear-color-btn btn-theme" style="width: 100%;" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+            </div>
+            
+        </div>
+
+        <div class="game-column">
+            <div class="main-card">
+                <div class="row">
+                    <div class="toggle-group" id="size-selector">
+                        <button id="size6" onclick="setGridSize(6)">6x6</button>
+                        <button id="size9" class="active" onclick="setGridSize(9)">9x9</button>
+                    </div>
+                    <div class="toggle-group">
+                        <button id="modeCreate" class="active" onclick="setAppMode('create')">CREATE</button>
+                        <button id="modeSolve" onclick="setAppMode('solve')">SOLVE</button>
+                    </div>
+                    <div id="timer" style="display:none; font-size: 22px; font-weight: 800;">00:00</div>
+                    <button id="pause-btn" class="btn" style="display:none; padding: 10px 15px;" onclick="togglePause()">Pause</button>
+                </div>
+
+                <div id="gen-controls" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; max-width: calc(var(--cell-size) * 9); margin: 15px auto 0 auto;">
+                    <div class="toggle-group" style="grid-column: span 2; display: flex; padding: 4px; gap: 4px;">
+                        <select id="diff" style="flex: 1; background: transparent; border: none; text-align: center; text-align-last: center; font-weight: 800; cursor: pointer; color: var(--text-main); font-size: 12px; outline: none;">
+                            <option value="easy">Easy</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                        <button id="gen-btn" class="btn gen-action-btn active" style="flex: 1; margin: 0; padding: 8px 5px;" onclick="generateNew()">Generate Puzzle</button>
+                    </div>
+                
+                    <button id="ghost-btn" class="btn gen-action-btn" style="width: 100%; margin: 0; padding: 8px 5px;" onclick="toggleGhost()">Ghost Solution</button>
+                    <button id="export-btn" class="btn gen-action-btn" style="width: 100%; margin: 0; padding: 8px 5px;" onclick="exportPuzzleLink()">Share Link</button>
+                </div>
+
+            <div id="grid-wrapper">
+                <div id="grid" class="grid"></div>
+                <div id="pause-overlay" class="overlay">
+                    <h2>Game Paused</h2>
+                    <button class="btn btn-primary" style="margin-top:15px;" onclick="togglePause()">Resume</button>
+                </div>
+                <div id="win-overlay" class="overlay">
+                    <h2 style="color: var(--success); font-size: 34px; margin-bottom: 5px;">SOLVED!</h2>
+                    <p id="final-time" style="margin-bottom: 10px; font-weight: 800; font-size: 18px;"></p>
+                    <div style="display: flex; flex-direction: column; gap: 8px; width: 90%;">
+                        <button class="btn btn-primary" style="background: var(--success);" onclick="restartSameLevel()">Play Again (Same Board)</button>
+                        
+                        <div class="win-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 100%;">
+                            <div class="win-grid-label">New 6x6 Game</div>
+                            
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(6, 'easy')">Easy</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(6, 'medium')">Medium</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(6, 'hard')">Hard</button>
+                            
+                            <div class="win-grid-label">New 9x9 Game</div>
+                            
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(9, 'easy')">Easy</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(9, 'medium')">Medium</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(9, 'hard')">Hard</button>
+                        </div>
+                
+                        <button class="btn btn-secondary" style="background: #64748b; color: white; border:none; padding: 12px; border-radius: 10px;" onclick="hideWinOverlay()">View My Solve</button>
+                        <button class="btn btn-secondary" style="background: var(--dark); color: white; border:none; padding: 12px; border-radius: 10px;" onclick="exitToCreate()">Back to Create Mode</button>
+                    </div>
+                </div>
+                <div id="return-win-btn" onclick="showWinOverlay()" style="display:none; ...">Show Result Options</div>
+            </div> <div class="numpad" id="numpad" style="margin-top: 30px; width: 100%;"></div>
+                    
+            <a href="index.html" class="btn btn-secondary">Go to Sudoku Logic</a>
+          
+        </div> 
+           
+        <div class="side-panel">
+
+            <div class="tool-section desktop-theme-only" style="margin: 0; width: 100%;">
+                <h3>Theme</h3>
+                <button class="clear-color-btn btn-theme" style="width: 100%;" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+            </div>
+
+            <div class="tool-section" style="margin: 0; width: 100%;">
+                <h3>Highlighter</h3>
+                <div class="color-grid" id="highlighter-tools" style="margin-bottom: 10px;"></div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button class="clear-color-btn" onclick="applyColor(null)">Clear Selected</button>
+                    <button id="clear-all-btn" class="clear-color-btn" onclick="clearAllHighlights()">Clear ALL</button>
+                </div>
+            </div>
+        
+        </div>
+    </div> 
+    <canvas id="confetti"></canvas>
+
+    <script type="module" src="./src/classic-main.js"></script>
+</body>
+</html>

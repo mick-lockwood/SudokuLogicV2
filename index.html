@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sudoku Logic V1</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="https://fav.farm/🧩">
+</head>
+
+<body class="dark-mode">
+    
+    <script>
+        try {
+            const saved = localStorage.getItem('sudoku_autosave');
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.darkMode === false) {
+                    document.body.classList.remove('dark-mode');
+                }
+            }
+        } catch(e) {}
+    </script>
+    
+    <div id="mobile-overlay" onclick="closeMobileMenu()"></div>
+  
+    <div id="mobile-toolbar">
+        <button id="toolbar-variants-btn" class="toolbar-btn" onclick="openMobileMenu('variants')">✏️ Tools & Rules</button>
+        <button class="toolbar-btn" onclick="openMobileMenu('colors')">🖍️ Highlighter</button>
+        <button class="toolbar-btn" onclick="openMobileMenu('settings')">⚙️ Settings</button>
+    </div>
+    
+    <h1><span id="puzzle-title" contenteditable="true" spellcheck="false" title="Click to rename your puzzle">Sudoku Logic</span> <span id="difficulty-badge" class="diff-medium">Medium</span></h1>
+    
+    <div id="app-container">
+  
+        <div id="left-panel">
+            <div class="tool-section" id="variant-tools-panel">
+                
+                <div class="toggle-group" style="width: 100%; display: flex; padding: 4px; margin-bottom: 5px;">
+                    <button id="tab-btn-drawing" class="active" style="flex: 1; padding: 8px 0; font-size: 10px;" onclick="setLeftTab('drawing')">DRAWING TOOLS</button>
+                    <button id="tab-btn-rules" style="flex: 1; padding: 8px 0; font-size: 10px;" onclick="setLeftTab('rules')">GLOBAL RULES</button>
+                </div>
+
+                <div id="tab-drawing" style="display: flex; flex-direction: column; gap: 8px;">
+                    <button id="tool-pointer" class="variant-tool-btn active" onclick="setTool('pointer')">Number Input<br>(Esc/V)</button>
+                    
+                    <hr class="tool-divider">
+
+                    <h3 style="margin: 5px 0; font-size: 9px;">Math Variants</h3>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        
+                        <button id="tool-thermo" class="variant-tool-btn" onclick="setTool('thermo')">Thermo Line</button>
+                        <button id="tool-whisper" class="variant-tool-btn" onclick="setTool('whisper')">German Whisper Line</button>
+                        <button id="tool-killer" class="variant-tool-btn" onclick="setTool('killer')">Killer Cage</button>
+                        <button id="tool-kropki-white" class="variant-tool-btn" onclick="setTool('kropki-white')">White Kropki Dot</button> 
+                        <button id="tool-kropki-black" class="variant-tool-btn" onclick="setTool('kropki-black')">Black Kropki Dot</button>
+                    </div>
+                    
+                    <hr class="tool-divider">
+
+                    <h3 style="margin: 5px 0; font-size: 9px;">Shade & Loop Variants</h3>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                    
+                        <button id="tool-nurikabe" class="variant-tool-btn" onclick="setTool('nurikabe')">Nurikabe Shade</button>
+                        <button id="tool-slitherlink" class="variant-tool-btn" disabled>Slitherlink</button>
+                        <button id="tool-starbattle" class="variant-tool-btn" disabled>Star Battle</button>
+                        <button id="tool-corral" class="variant-tool-btn" disabled>Corral</button>
+                    </div>
+                    
+                    <hr class="tool-divider">
+                    
+                    <button id="tool-edit" class="variant-tool-btn" onclick="setTool('edit')">Edit Variant<br>(Click Variant)</button>
+                    <button id="tool-eraser" class="variant-tool-btn" onclick="setTool('eraser')">Erase Variant<br>(Click Variant)</button>
+                    
+                    <div style="display: flex; gap: 8px; margin-top: 5px;">
+                        <button id="btn-undo-variant" class="variant-action-btn" style="flex: 1;" onclick="undoVariant()">Undo Variant</button>
+                        <button id="btn-redo-variant" class="variant-action-btn" style="flex: 1;" onclick="redoVariant()">Redo Variant</button>
+                    </div>
+                    
+                    <button id="btn-clear-variants" class="variant-action-btn danger" onclick="clearVariantGraphics()">Clear All Variants</button>
+                </div>
+
+                <div id="tab-rules" style="display: none; flex-direction: column; gap: 8px;">
+                    <h3 style="margin: 5px 0 0 0; color: var(--text-main);">Global Variant Rules</h3>
+                    <label class="switch-label">Anti-Knight <input type="checkbox" id="toggle-anti-knight" onchange="toggleAntiKnight()"></label>
+                    <label class="switch-label">Anti-King <input type="checkbox" id="toggle-anti-king" onchange="toggleAntiKing()"></label>
+
+                    <hr class="tool-divider" style="margin: 5px 0;">
+                    
+                    <h3 style="margin: 0; color: var(--text-main);">Grid Modifications</h3>  
+                    
+                    <label class="switch-label">Jigsaw Regions <input type="checkbox" id="toggle-jigsaw" onchange="toggleJigsawMode()"></label>
+                    <label class="switch-label">Suguru Regions <input type="checkbox" id="toggle-suguru" onchange="toggleSuguruMode()"></label>
+                    <button id="tool-region" class="variant-tool-btn" style="display: none;" onclick="setTool('region')">Region Painter</button>
+                    <button id="btn-reset-regions" class="variant-action-btn danger" style="display: none; margin-bottom: 4px;" onclick="resetRegions()">Reset Regions</button>
+                    
+                    <label class="switch-label">Fog of War <input type="checkbox" id="toggle-fog" onchange="toggleFogMode()"></label>
+                    <button id="tool-fog" class="variant-tool-btn" style="display: none;" onclick="setTool('fog')">☁️ Paint Fog</button>
+                    <button id="tool-fog-link" class="variant-tool-btn" style="display: none;" onclick="setTool('fog-link')">🔗 Fog Linker</button>
+                    <button id="btn-clear-fog" class="variant-action-btn danger" style="display: none; margin-bottom: 4px;" onclick="clearFogData()">Clear All Fog</button>
+                    
+                    <label class="switch-label">Torus Mode <input type="checkbox" id="toggle-shift" onchange="toggleShiftMode()"></label>
+                    <button id="btn-scramble-torus" class="variant-action-btn active" style="display: none; margin-top: 4px; width: 100%; background: #9b59b6; color: white;" onclick="generateTorusPuzzle()">🎲 Generate Torus</button>
+                    <button id="tool-lock" class="variant-tool-btn" style="display: none; margin-top: 4px;" onclick="setTool('lock')">🔒 Lock/Unlock Cell</button>
+                    
+                    <label class="switch-label">Show Perimeter Cells <input type="checkbox" id="toggle-outer-clues" onchange="toggleOuterClues()"></label>
+                    
+                    <hr class="tool-divider" style="margin: 5px 0;">
+                    
+                    <h3 style="margin: 0; color: var(--text-main);">Perimeter Rules</h3>
+                    <label class="switch-label">Sandwich Sums <input type="checkbox" id="rule-sandwich" onchange="togglePerimeterRule()"></label>
+                    <label class="switch-label">Skyscrapers <input type="checkbox" id="rule-skyscraper" onchange="togglePerimeterRule()"></label>
+                    <label class="switch-label">Frames <input type="checkbox" id="rule-frames" onchange="togglePerimeterRule()"></label>
+                    <label class="switch-label">Numbered Rooms <input type="checkbox" id="rule-rooms" onchange="togglePerimeterRule()"></label>
+                </div>
+
+            </div>
+
+            <div class="tool-section" id="game-rules-panel" style="display: none; margin-top: 15px;">
+                <h3>Game Rules</h3>
+                <ul id="game-rules-list" style="margin: 0; padding-left: 20px; font-size: 0.85rem; color: var(--text-main); line-height: 1.5; text-align: left;">
+                </ul>
+            </div>
+            
+            <div class="tool-section mobile-theme-only" style="margin-top: 15px; width: 100%;">
+                <h3>Theme</h3>
+                <button class="clear-color-btn btn-theme" style="width: 100%;" onclick="toggleDarkMode()">Toggle Light Mode</button>
+            </div>    
+        </div>
+
+        <div class="game-column">
+            <div class="main-card">
+                <div class="row">
+                    <div class="toggle-group" id="size-selector">
+                        <button id="size6" onclick="setGridSize(6)">6x6</button>
+                        <button id="size9" class="active" onclick="setGridSize(9)">9x9</button>
+                    </div>
+                    <div class="toggle-group">
+                        <button id="modeCreate" class="active" onclick="setAppMode('create')">CREATE</button>
+                        <button id="modeSolve" onclick="setAppMode('solve')">SOLVE</button>
+                    </div>
+                    <div id="timer" style="display:none; font-size: 22px; font-weight: 800;">00:00</div>
+                    <button id="pause-btn" class="btn" style="display:none; padding: 10px 15px;" onclick="togglePause()">Pause</button>
+                </div>
+                    
+                <div id="gen-controls" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; max-width: calc(var(--cell-size) * 9); margin: 15px auto 0 auto;">
+                    <div class="toggle-group" style="grid-column: span 2; display: flex; padding: 4px; gap: 4px;">
+                        <div class="custom-dropdown" id="diff-wrapper">
+                            <input type="hidden" id="diff" value="medium">
+                            
+                            <div id="diff-selected" onclick="toggleDropdown()">Medium</div>
+                            <div id="diff-options" class="dropdown-content">
+                                <div onclick="selectDiff('easy')">Easy</div>
+                                <div onclick="selectDiff('medium')">Medium</div>
+                                <div onclick="selectDiff('hard')">Hard</div>
+                            </div>
+                        </div>
+                        <button id="gen-btn" class="btn gen-action-btn" style="flex: 1; margin: 0; padding: 8px 5px;" onclick="generateNew()">Generate Puzzle</button>
+                    </div>
+                    
+                    <button id="ghost-btn" class="btn gen-action-btn" style="width: 100%; margin: 0; padding: 8px 5px;" onclick="toggleGhost()">Ghost Solution</button>
+                    <button id="export-btn" class="btn gen-action-btn" style="width: 100%; margin: 0; padding: 8px 5px;" onclick="exportPuzzleLink()">Share Link</button>
+                </div>
+            
+                <div id="status-label" style="font-size: 13px; font-weight: 800; text-transform: uppercase; min-height: 1.5em; margin-top: 10px;">Enter Digits...</div>
+                
+                <div style="display: flex; gap: 20px; font-size: 12px; margin-top: 5px;">
+                    
+                    <div id="create-mode-actions" style="display: flex; gap: 20px;">
+                        <a href="#" style="color: var(--danger); text-decoration: none; font-weight: 600;" onclick="handleClearAllCreate()">Reset Puzzle (Wipe All)</a>
+                        <a href="#" class="util-link" style="text-decoration: none; font-weight: 600;" onclick="handleClearDigitsCreate()">Clear Digits Only</a>
+                    </div>
+                    
+                    <div id="solve-mode-actions" style="display: none; gap: 20px;">
+                        <a href="#" style="color: var(--danger); text-decoration: none; font-weight: 600;" onclick="handleResetSolve()">Reset Puzzle (Restart)</a>
+                        
+                        <a href="#" id="clear-inputs-link" class="util-link" style="text-decoration: none; font-weight: 600;" onclick="handleClearUserInputs()">Clear User Inputs</a>
+                        
+                        <a href="#" id="clean-pencils-link" class="util-link" style="text-decoration: none; font-weight: 600;" onclick="handleClearPencils()">Clear Pencils Only</a>
+                        <a href="#" id="btn-autofill-pencils" class="util-link" style="display:none; text-decoration: none; font-weight: 600;" onclick="autoFillPencils()">Auto-Fill Pencils</a>
+                    </div>
+            
+                </div>
+            </div>
+
+            <div id="grid-wrapper">
+                <div id="grid" class="grid"></div>
+                <div id="torus-grid" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; z-index: 5; pointer-events: none;"></div>
+                <div id="variant-overlay"></div>
+                <svg id="svg-layer"></svg>
+                
+                <div id="pause-overlay" class="overlay">
+                    <h2>Game Paused</h2>
+                    <button class="btn btn-primary" style="margin-top:15px;" onclick="togglePause()">Resume</button>
+                </div>
+                <div id="win-overlay" class="overlay">
+                    <h2 style="color: var(--success); font-size: 34px; margin-bottom: 5px;">SOLVED!</h2>
+                    <p id="final-time" style="margin-bottom: 10px; font-weight: 800; font-size: 18px;"></p>
+                    <div style="display: flex; flex-direction: column; gap: 8px; width: 90%;">
+                        <button class="btn btn-primary" style="background: var(--success);" onclick="restartSameLevel()">Play Again (Same Board)</button>
+                        
+                        <div class="win-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; width: 100%;">
+                            <div class="win-grid-label">New 6x6 Game</div>
+                            
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(6, 'easy')">Easy</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(6, 'medium')">Medium</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(6, 'hard')">Hard</button>
+                            
+                            <div class="win-grid-label">New 9x9 Game</div>
+                            
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(9, 'easy')">Easy</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(9, 'medium')">Medium</button>
+                            <button class="btn btn-secondary" style="padding: 10px 2px; font-size: 10px; background: #64748b; color: white; border:none; border-radius: 8px;" onclick="generateWithDiff(9, 'hard')">Hard</button>
+                        </div>
+                
+                        <button class="btn btn-secondary" style="background: #64748b; color: white; border:none; padding: 12px; border-radius: 10px;" onclick="hideWinOverlay()">View My Solve</button>
+                        <button class="btn btn-secondary" style="background: var(--dark); color: white; border:none; padding: 12px; border-radius: 10px;" onclick="exitToCreate()">Back to Create Mode</button>
+                    </div>
+                </div>
+                <div id="return-win-btn" onclick="showWinOverlay()" style="display:none; ">Show Result Options</div>
+            </div> <div class="numpad" id="numpad" style="margin-top: 30px; width: 100%;"></div>
+            
+            <a href="classic.html" class="btn btn-secondary">Go to Sudoku Creator - Classic</a>
+            <button class="btn btn-secondary" 
+                    style="margin-top: 10px; color: var(--danger); border: 1px solid var(--danger); background: transparent;" 
+                    onclick="hardResetApp()">
+                ⚠️ Hard Reset App Data
+            </button>
+            
+        </div> 
+        
+        <div class="side-panel">
+
+            <div class="tool-section desktop-theme-only" style="margin: 0; width: 100%;">
+                <h3>Theme</h3>
+                <button class="clear-color-btn btn-theme" style="width: 100%;" onclick="toggleDarkMode()">Toggle Light Mode</button>
+            </div>
+                
+            <div class="tool-section">
+                <h3>Visibility</h3>
+                <label class="switch-label">Highlight Cells Seen <input type="checkbox" id="toggle-seen" checked onchange="updateUI()"></label>
+                <label class="switch-label">Highlight Matching Digits <input type="checkbox" id="toggle-match" checked onchange="updateUI()"></label>
+                <label class="switch-label">Show Error Alerts <input type="checkbox" id="toggle-errors" checked onchange="updateUI()"></label>
+                <label class="switch-label">Show Timer <input type="checkbox" id="toggle-timer" checked onchange="toggleTimerVis()"></label>
+            </div>
+            
+            <div class="tool-section" style="margin: 0; width: 100%;">
+                <h3>Highlighter</h3>
+                <div class="color-grid" id="highlighter-tools" style="margin-bottom: 10px;"></div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <button class="clear-color-btn" onclick="applyColor(null)">Clear Selected</button>
+                    <button id="clear-all-btn" class="clear-color-btn" onclick="clearAllHighlights()">Clear ALL</button>
+                </div>
+            </div>
+        </div>
+    </div> 
+    <canvas id="confetti"></canvas>
+
+    <script type="module" src="./src/advanced-main.js"></script>
+</body>
+</html>
