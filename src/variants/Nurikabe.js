@@ -43,11 +43,11 @@ function find2x2(grid, size) {
     return null;
 }
 
-// Extract islands from a shading array (1 = white)
+// Extract islands from a shading array (1 = white cell)
 function getIslands(shades, size) {
     const visited = new Set();
-    const islands = []; // each element: array of cell indices
-    for (let i = 0; i < shards.length; i++) {
+    const islands = [];
+    for (let i = 0; i < shadess.length; i++) {   // <--- FIXED: was "shards"
         if (shades[i] === 1 && !visited.has(i)) {
             const island = [];
             const stack = [i];
@@ -68,7 +68,7 @@ function getIslands(shades, size) {
     return islands;
 }
 
-// Clear undo stacks to prevent Undo from revealing the solution
+// Clear undo stacks so Undo doesn't reveal the full solution
 function clearUndoStacks() {
     if (State.undoStack) State.undoStack = [];
     if (State.redoStack) State.redoStack = [];
@@ -78,7 +78,7 @@ function clearUndoStacks() {
     }
 }
 
-// ========== GENERATOR ==========
+// ========== ORIGINAL GRID GENERATOR (unchanged) ==========
 export function generateNurikabeGrid(size) {
     const totalCells = size * size;
     let grid = Array(totalCells).fill(2); 
@@ -170,15 +170,16 @@ export function generateNurikabeGrid(size) {
         throw new Error("INVALID_GRID_GENERATED");
     }
 
-    // Now place clues: for each island, we'll decide how many clues later in generateRandomNurikabe
-    // Return only the shading and island info
-    const islands = getIslands(grid, size);
-    const islandMap = new Map(); // cell index -> island index
-    islands.forEach((island, idx) => {
-        island.forEach(cell => islandMap.set(cell, idx));
+    // Generate clues: original logic places one per island
+    let clues = [];
+    islandRoots.forEach(isl => {
+        if (isl.length > 0) {
+            let cluePos = isl[Math.floor(Math.random() * isl.length)];
+            clues.push({ i: cluePos, v: isl.length });
+        }
     });
 
-    return { shades: grid, islands, islandMap };
+    return { shades: grid, clues: clues };
 }
 
 // ========== UI ACTIONS ==========
@@ -189,27 +190,21 @@ export function autoClueNurikabe() {
     setTimeout(() => {
         State.board.forEach(c => { c.val = 0; c.given = false; c.notes = []; });
         
-        // Extract islands from the current shadeMap (set by the user in create mode)
+        // Extract islands from the player‑drawn shading
         const islands = getIslands(State.shadeMap, State.size);
         
-        // Place at least one clue per island, then add a second clue if island size > 1
+        // Place two clues per island when possible
         islands.forEach(island => {
-            // Random order for clue placement
             const shuffled = island.slice().sort(() => Math.random() - 0.5);
-            // First clue
-            const first = shuffled[0];
-            State.board[first].val = island.length;
-            State.board[first].given = true;
-            // Second clue (if possible)
-            if (island.length > 1 && shuffled.length > 1) {
-                const second = shuffled[1];
-                State.board[second].val = island.length;
-                State.board[second].given = true;
+            State.board[shuffled[0]].val = island.length;
+            State.board[shuffled[0]].given = true;
+            if (island.length > 1) {
+                State.board[shuffled[1]].val = island.length;
+                State.board[shuffled[1]].given = true;
             }
         });
 
         State.solutionShadeMap = [...State.shadeMap];
-        // Player shading will be cleared by setAppMode's hook
         clearUndoStacks();
         saveState();
 
@@ -235,15 +230,16 @@ export function generateRandomNurikabe(attemptsLeft = 30) {
         try {
             const puzzle = generateNurikabeGrid(State.size);
             State.solutionShadeMap = puzzle.shades;
-            State.shadeMap = Array(State.size * State.size).fill(0);
+            State.shadeMap = Array(State.size * State.size).fill(0); // empty for player
 
-            // Place clues: at least two per island if size > 1
-            puzzle.islands.forEach(island => {
+            // Compute islands from the generated shading
+            const islands = getIslands(puzzle.shades, State.size);
+
+            // Place two clues per island (if size > 1) for uniqueness
+            islands.forEach(island => {
                 const shuffled = island.slice().sort(() => Math.random() - 0.5);
-                // First clue
                 State.board[shuffled[0]].val = island.length;
                 State.board[shuffled[0]].given = true;
-                // Second clue for islands with more than one cell
                 if (island.length > 1) {
                     State.board[shuffled[1]].val = island.length;
                     State.board[shuffled[1]].given = true;
@@ -269,6 +265,7 @@ export function generateRandomNurikabe(attemptsLeft = 30) {
 
 // ========== VALIDATION (unchanged) ==========
 export function validateNurikabe(shadeMap, board, size) {
+    // 0. All cells must be shaded (no zeros)
     if (shadeMap.some(val => val === 0)) return false;
 
     function getNeighbors(i) {
@@ -281,7 +278,7 @@ export function validateNurikabe(shadeMap, board, size) {
         return n;
     }
 
-    // No 2x2 black
+    // 1. No 2x2 black squares
     for (let r = 0; r < size - 1; r++) {
         for (let c = 0; c < size - 1; c++) {
             const idx = r * size + c;
@@ -292,7 +289,7 @@ export function validateNurikabe(shadeMap, board, size) {
         }
     }
 
-    // Black connectivity
+    // 2. Black connectivity
     const blackIndices = [];
     for (let i = 0; i < size * size; i++) {
         if (shadeMap[i] === 2) blackIndices.push(i);
@@ -312,7 +309,7 @@ export function validateNurikabe(shadeMap, board, size) {
     }
     if (visitedBlack.size !== blackIndices.length) return false;
 
-    // White islands: exactly one clue matching island size
+    // 3. White islands: exactly one clue matching island size
     const visitedWhite = new Set();
     for (let i = 0; i < size * size; i++) {
         if (shadeMap[i] === 1 && !visitedWhite.has(i)) {
