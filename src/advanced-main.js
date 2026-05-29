@@ -15,6 +15,30 @@ import { drawKropki } from './variants/Kropki.js';
 import { autoClueNurikabe, generateRandomNurikabe } from './variants/Nurikabe.js';
 import { validateNurikabe } from './variants/Nurikabe.js';
 
+// ========== DROPDOWN FUNCTIONS (add these) ==========
+window.toggleDropdown = () => {
+    const options = document.getElementById('diff-options');
+    if (options) options.classList.toggle('show');
+};
+
+window.selectDiff = (val) => {
+    const hiddenInput = document.getElementById('diff');
+    const selectedSpan = document.getElementById('diff-selected');
+    if (hiddenInput) hiddenInput.value = val;
+    if (selectedSpan) selectedSpan.innerText = val.charAt(0).toUpperCase() + val.slice(1);
+    const options = document.getElementById('diff-options');
+    if (options) options.classList.remove('show');
+};
+
+// Also add a click listener to close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('diff-wrapper');
+    const options = document.getElementById('diff-options');
+    if (wrapper && options && !wrapper.contains(e.target)) {
+        options.classList.remove('show');
+    }
+});
+
 window.isWiping = false;
 
 // --- AUTO-RESIZE SVGS ---
