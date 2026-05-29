@@ -1520,7 +1520,6 @@ window.addEventListener('beforeunload', () => window.forceAutosave());
 const originalUpdateUI = window.updateUI;
 window.updateUI = () => {
     if (originalUpdateUI) originalUpdateUI();
-    // Win check must run after EVERY UI update (covers Nurikabe shading, etc.)
     if (typeof window.checkAdvancedWin === 'function') window.checkAdvancedWin();
     if (typeof window.triggerAutosave === 'function') window.triggerAutosave();
     if (typeof renderTorusBoard === 'function') renderTorusBoard();
