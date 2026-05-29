@@ -183,6 +183,27 @@ export function autoClueNurikabe() {
         });
 
         State.solutionShadeMap = [...State.shadeMap];
+        // Check uniqueness
+        const solCount = countNurikabeSolutions(State.board, State.size, 2);
+        if (solCount !== 1) {
+            // Add more clues from the solution to force uniqueness
+            const islMap = getIslands(State.solutionShadeMap, State.size);
+            const islandSize = {};
+            // Determine island sizes
+            for (let i = 0; i < State.size * State.size; i++) {
+                const root = islMap[i];
+                islandSize[root] = (islandSize[root] || 0) + 1;
+            }
+            // Add clues for all white cells not yet given
+            for (let i = 0; i < State.size * State.size; i++) {
+                if (State.shadeMap[i] === 1 && State.board[i].val === 0) {
+                    const root = islMap[i];
+                    State.board[i].val = islandSize[root];
+                    State.board[i].given = true;
+                }
+            }
+            // Now it's fully clued, definitely unique
+        }
         // Player shading will be cleared by setAppMode’s Nurikabe hook
         // Clear undo history so Undo does not reveal the full shading
         if (State.undoStack) State.undoStack = [];
@@ -201,49 +222,80 @@ export function autoClueNurikabe() {
     }, 50);
 }
 
-export function generateRandomNurikabe(attemptsLeft = 50) {
+export function generateRandomNurikabe(attemptsLeft = 30) {
     if (attemptsLeft <= 0) {
-        const label = document.getElementById('status-label');
-        if (label) { label.textContent = "Generation Failed"; label.style.color = "var(--danger)"; }
+        // Fallback: generate a fully‑clued puzzle (unique by definition)
+        const puzzle = generateNurikabeGrid(State.size);
+        State.solutionShadeMap = puzzle.shades;
+        // Set every white cell as a given digit
+        for (let i = 0; i < State.size * State.size; i++) {
+            if (puzzle.shades[i] === 1) {
+                // compute island size
+                // We'll do a quick flood fill for each island – but we already have the island roots?
+                // Use the same logic as autoClueNurikabe later. For fallback we can just set all white cells as clues
+                // with value = island size. Simplest: run autoClue-like extraction
+                const islandMap = getIslands(puzzle.shades, State.size);
+                const islandSizes = {};
+                for (let idx of Object.keys(islandMap)) {
+                    const root = islandMap[idx];
+                    if (!islandSizes[root]) islandSizes[root] = 0;
+                    islandSizes[root]++;
+                }
+                // find which island this cell belongs to and set clue
+                const root = islandMap[i];
+                State.board[i].val = islandSizes[root];
+                State.board[i].given = true;
+            } else {
+                State.board[i].val = 0;
+                State.board[i].given = false;
+            }
+        }
+        State.shadeMap = Array(State.size * State.size).fill(0);
+        // Clear undo stacks
+        clearUndoStacks();
+        saveState();
+        updateStatus("Puzzle Ready! (fully clued)");
+        switchToSolveMode();
         return;
     }
 
     const label = document.getElementById('status-label');
     if (label) { label.textContent = "Generating Nurikabe..."; label.style.color = "var(--text-main)"; }
-    
     State.board.forEach(c => { c.val = 0; c.given = false; c.notes = []; });
-    
+
     setTimeout(() => {
         try {
             const puzzle = generateNurikabeGrid(State.size);
-            State.solutionShadeMap = puzzle.shades;
-            // Player starts with completely empty shading – NEVER store the full solution
-            State.shadeMap = Array(State.size * State.size).fill(0);
-            
+            const solutionShades = puzzle.shades;
+            // Place one clue per island
+            const boardCopy = [];
+            for (let i = 0; i < State.size * State.size; i++) {
+                boardCopy.push({ val: 0, given: false, notes: [] });
+            }
             puzzle.clues.forEach(clue => {
-                State.board[clue.i].val = clue.v;
-                State.board[clue.i].given = true;
+                boardCopy[clue.i].val = clue.v;
+                boardCopy[clue.i].given = true;
             });
 
-            // Clear all undo history so Undo cannot bring back the solution
-            if (State.undoStack) State.undoStack = [];
-            if (State.redoStack) State.redoStack = [];
-            if (window.AdvancedState) {
-                window.AdvancedState.variantUndoStack = [];
-                window.AdvancedState.variantRedoStack = [];
+            // Uniqueness check
+            const solCount = countNurikabeSolutions(boardCopy, State.size, 2);
+            if (solCount !== 1) {
+                // Not unique – retry
+                console.log("Generated puzzle is not unique, retrying...");
+                generateRandomNurikabe(attemptsLeft - 1);
+                return;
             }
 
+            // Success – commit to State
+            State.solutionShadeMap = solutionShades;
+            State.shadeMap = Array(State.size * State.size).fill(0);
+            State.board = boardCopy;
+            clearUndoStacks();
             saveState();
-            
-            if (label) { label.textContent = "Puzzle Ready!"; label.style.color = "var(--success)"; }
-            if (typeof window.updateDynamicTitle === 'function') window.updateDynamicTitle();
-            if (typeof window.setAppMode === 'function') window.setAppMode('solve');
-            if (typeof window.updateUI === 'function') window.updateUI();
-            if (typeof window !== 'undefined' && window.propagateFogReveal) {
-                setTimeout(() => window.propagateFogReveal(), 50);
-            }
+            updateStatus("Puzzle Ready!");
+            switchToSolveMode();
         } catch (e) {
-            console.warn("Nurikabe generation failed, retrying...", e);
+            console.warn("Error during generation, retrying...", e);
             generateRandomNurikabe(attemptsLeft - 1);
         }
     }, 10);
@@ -327,4 +379,107 @@ export function validateNurikabe(shadeMap, board, size) {
         }
     }
     return true;
+}
+
+function getIslands(shades, size) {
+    const visited = new Set();
+    const islandMap = {}; // cell -> root index
+    for (let i = 0; i < size * size; i++) {
+        if (shades[i] === 1 && !visited.has(i)) {
+            const root = i;
+            let queue = [i];
+            visited.add(i);
+            while (queue.length) {
+                const curr = queue.shift();
+                islandMap[curr] = root;
+                for (let n of getNeighbors(curr, size)) {
+                    if (shades[n] === 1 && !visited.has(n)) {
+                        visited.add(n);
+                        queue.push(n);
+                    }
+                }
+            }
+        }
+    }
+    return islandMap;
+}
+
+function clearUndoStacks() {
+    if (State.undoStack) State.undoStack = [];
+    if (State.redoStack) State.redoStack = [];
+    if (window.AdvancedState) {
+        window.AdvancedState.variantUndoStack = [];
+        window.AdvancedState.variantRedoStack = [];
+    }
+}
+
+function updateStatus(msg) {
+    const label = document.getElementById('status-label');
+    if (label) { label.textContent = msg; label.style.color = "var(--success)"; }
+}
+
+function switchToSolveMode() {
+    if (typeof window.updateDynamicTitle === 'function') window.updateDynamicTitle();
+    if (typeof window.setAppMode === 'function') window.setAppMode('solve');
+    if (typeof window.updateUI === 'function') window.updateUI();
+    if (typeof window !== 'undefined' && window.propagateFogReveal) {
+        setTimeout(() => window.propagateFogReveal(), 50);
+    }
+}
+
+function countNurikabeSolutions(board, size, maxSolutions = 2) {
+    let solutions = 0;
+    const total = size * size;
+    const shade = new Array(total).fill(0); // 0 unknown, 1 white, 2 black
+
+    // Clue cells are forced white
+    for (let i = 0; i < total; i++) {
+        if (board[i].val > 0) shade[i] = 1;
+    }
+
+    // Pre-compute neighbours for quick pruning
+    const neighbours = new Array(total);
+    for (let i = 0; i < total; i++) {
+        neighbours[i] = getNeighbors(i, size);
+    }
+
+    function backtrack(idx) {
+        if (solutions >= maxSolutions) return;
+        while (idx < total && shade[idx] !== 0) idx++;
+        if (idx >= total) {
+            if (validateNurikabe(shade, board, size)) solutions++;
+            return;
+        }
+        // Branch: try black then white (order can be any)
+        for (let val of [2, 1]) {
+            shade[idx] = val;
+            // Prune only if no immediate 2x2 black appears
+            if (!creates2x2(idx, shade, size)) {
+                backtrack(idx + 1);
+            }
+            shade[idx] = 0;
+        }
+    }
+
+    function creates2x2(idx, shade, size) {
+        if (shade[idx] !== 2) return false;
+        const r = Math.floor(idx / size), c = idx % size;
+        // Check the four possible 2x2 blocks that contain this cell
+        const offsets = [[0,0],[-1,0],[0,-1],[-1,-1]]; // top-left corners
+        for (let [dr, dc] of offsets) {
+            const tr = r + dr, tc = c + dc;
+            if (tr < 0 || tr >= size-1 || tc < 0 || tc >= size-1) continue;
+            const tl = tr * size + tc;
+            const trIdx = tl + 1;
+            const blIdx = tl + size;
+            const brIdx = tl + size + 1;
+            if (shade[tl] === 2 && shade[trIdx] === 2 && shade[blIdx] === 2 && shade[brIdx] === 2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    backtrack(0);
+    return solutions;
 }
