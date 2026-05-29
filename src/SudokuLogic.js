@@ -178,12 +178,9 @@ export function cleanPencilsAfterMove(idx, val) {
 let solveIterations = 0;
 
 export function countSolutions(boardArray, count = 0, isFirstCall = true) {
-    // Reset the fail-safe counter on the first click
     if (isFirstCall) solveIterations = 0;
     solveIterations++;
-
-    // FAIL-SAFE: Abort to prevent main thread freezing
-    if (solveIterations > 20000) return -1; 
+    if (solveIterations > 5000) return -1; 
 
     let pos = boardArray.indexOf(0);
     if (pos === -1) return count + 1;
