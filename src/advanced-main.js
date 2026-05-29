@@ -13,6 +13,7 @@ import { drawWhisper } from './variants/Whisper.js';
 import { drawKiller } from './variants/Killer.js';
 import { drawKropki } from './variants/Kropki.js';
 import { autoClueNurikabe, generateRandomNurikabe } from './variants/Nurikabe.js';
+import { validateNurikabe } from './variants/Nurikabe.js';
 
 window.isWiping = false;
 
