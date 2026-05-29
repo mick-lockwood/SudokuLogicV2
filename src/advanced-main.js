@@ -387,8 +387,48 @@ window.handleInput = (val) => {
                     }
                 }
             }
-            State.fogRevealed[primary] = true; 
+            State.fogRevealed[primary] = true;
+            propagateFogReveal()
         }
+    }
+
+    function propagateFogReveal() {
+        if (!State.fogMode || State.mode !== 'solve') return;
+        let changed = true;
+        let maxIter = 50; // safety
+        let iter = 0;
+        while (changed && iter++ < maxIter) {
+            changed = false;
+            for (let i = 0; i < State.size * State.size; i++) {
+                if (State.fogMap[i] && !State.fogRevealed[i]) {
+                    let shouldReveal = false;
+                    // Check if this cell has a trigger digit and it matches the current value
+                    if (State.fogTriggers && State.fogTriggers[i] !== undefined) {
+                        if (State.board[i].val === State.fogTriggers[i]) shouldReveal = true;
+                    } else if (State.solution && State.solution[i] !== undefined) {
+                        // If no custom trigger, use solution digit (only if the cell is correctly filled)
+                        if (State.board[i].val === State.solution[i]) shouldReveal = true;
+                    }
+                    if (shouldReveal) {
+                        State.fogRevealed[i] = true;
+                        changed = true;
+                        // Also reveal any cells linked from this one
+                        if (State.fogLinks && State.fogLinks[i]) {
+                            for (let target of State.fogLinks[i]) {
+                                if (!State.fogRevealed[target]) {
+                                    State.fogRevealed[target] = true;
+                                    changed = true;
+                                }
+                            }
+                        }
+                        // Reveal 3x3 area around it? (your existing code does that, but we re-run loop)
+                    }
+                }
+            }
+            // Also propagate from links: if a target is revealed, it might trigger its own links
+            // The loop will catch that in next iteration.
+        }
+        if (typeof window.updateUI === 'function') window.updateUI();
     }
     
     // 4. THE CORE CELL ASSIGNMENT (Bypassing Classic Engine)
