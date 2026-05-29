@@ -1,5 +1,6 @@
 // src/variants/Nurikabe.js
 import { State, saveState } from '../GameState.js';
+export { generateNurikabeGrid };
 
 // --- MATH & VALIDATION ---
 function find2x2(grid, size) {
