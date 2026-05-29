@@ -1560,13 +1560,9 @@ window.loadAutosave = () => {
         window.isCustomTitle = data.isCustomTitle || false;
         
         if (data.title && window.isCustomTitle) {
-            // Only force the text if the user actually typed it manually
             const titleEl = document.getElementById('puzzle-title');
-            if (titleEl) {
-                titleEl.innerText = data.title;
-            }
+            if (titleEl) titleEl.innerText = data.title;
         } else {
-            // Otherwise, let the auto-generator rebuild it based on the loaded variants!
             if (typeof window.updateDynamicTitle === 'function') window.updateDynamicTitle();
         }
         
@@ -1604,12 +1600,9 @@ window.loadAutosave = () => {
         document.getElementById('timer').style.display = m === 'create' ? 'none' : 'block';
         document.getElementById('pause-btn').style.display = m === 'create' ? 'none' : 'block';
         
-        // Force the Variant Tools panel to obey the mode
         const variantPanel = document.getElementById('variant-tools-panel');
         if (variantPanel) variantPanel.style.display = (m === 'create') ? 'flex' : 'none';
         
-        // --- THE MISSING REFRESH LOGIC ---
-        // Force the Create wrappers and status text to hide if booting into Solve mode
         const statusLabel = document.getElementById('status-label');
         if (statusLabel) statusLabel.style.display = (m === 'create') ? 'block' : 'none';
 
@@ -1617,9 +1610,7 @@ window.loadAutosave = () => {
         const solveActions = document.getElementById('solve-mode-actions');
         if (createActions) createActions.style.display = (m === 'create') ? 'flex' : 'none';
         if (solveActions) solveActions.style.display = (m === 'solve') ? 'flex' : 'none';
-        // ---------------------------------
         
-        // Force Torus toggles to obey the mode
         const autoFillBtn = document.getElementById('btn-autofill-pencils');
         const cleanPencilsLink = document.getElementById('clean-pencils-link');
         const clearInputsLink = document.getElementById('clear-inputs-link');
@@ -1635,7 +1626,6 @@ window.loadAutosave = () => {
             if (typeof window.startTimer === 'function') window.startTimer();
         }
 
-        // FORCE RE-SYNC: Ensure UI visibility matches the loaded State
         window.setAppMode(State.mode); 
         if (State.shiftMode) window.toggleShiftMode();
         
@@ -1647,10 +1637,13 @@ window.loadAutosave = () => {
         }
         
         return true;
-        
     } catch(e) {
         console.error("Failed to load autosave", e);
         return false;
     }
 };
+
+// Expose fog propagation for other modules (like Nurikabe.js)
 window.propagateFogReveal = propagateFogReveal;
+
+// End of advanced-main.js
